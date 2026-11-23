@@ -1,0 +1,34 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python caches and build output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Secrets: never commit these
+.env
+.env.*
+*.env
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# Claude Code: local-only files
+.claude/.notion-pending
+.claude/settings.local.json
+
+# Local data and caches (raw SEC downloads, databases) - revisit in Milestone 2
+data/raw/
+*.duckdb
+*.duckdb.wal
+
+# Editor
+.idea/

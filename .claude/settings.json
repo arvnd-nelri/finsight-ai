@@ -1,0 +1,53 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__notion__API-get-self",
+      "mcp__notion__API-post-search",
+      "mcp__notion__API-retrieve-a-page",
+      "mcp__notion__API-retrieve-a-block",
+      "mcp__notion__API-get-block-children",
+      "mcp__notion__API-retrieve-page-markdown",
+      "mcp__notion__API-post-page",
+      "mcp__notion__API-patch-page",
+      "mcp__notion__API-patch-block-children",
+      "mcp__notion__API-update-a-block",
+      "mcp__notion__API-update-page-markdown"
+    ],
+    "ask": [
+      "mcp__notion__API-delete-a-block",
+      "mcp__notion__API-move-page"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/notion-sync.sh\" mark"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__notion__API-(post-page|patch-page|patch-block-children|update-a-block|update-page-markdown)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/notion-sync.sh\" clear"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/notion-sync.sh\" stop"
+          }
+        ]
+      }
+    ]
+  }
+}
