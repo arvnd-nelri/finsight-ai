@@ -1,0 +1,25 @@
+# pyproject.toml — package metadata, dependencies, and tool settings
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finsight-ai"
+version = "0.1.0"
+description = "Evidence-grounded financial research agent over SEC data"
+readme = "README.md"
+requires-python = ">=3.12"
+# Runtime libraries are added here as each milestone needs them.
+dependencies = []
+
+[project.optional-dependencies]
+# Tools for development only. Install with: pip install -e ".[dev]"
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

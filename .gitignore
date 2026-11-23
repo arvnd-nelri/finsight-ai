@@ -25,8 +25,9 @@ dist/
 .claude/.notion-pending
 .claude/settings.local.json
 
-# Local data and caches (raw SEC downloads, databases) - revisit in Milestone 2
+# Local data: reproducible from scripts, so never committed (see data/README.md)
 data/raw/
+data/processed/
 *.duckdb
 *.duckdb.wal
 

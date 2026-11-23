@@ -436,7 +436,7 @@ Technical terms should be explained in plain English using examples from this pr
 
 ## 13. Known project state
 
-This is a snapshot as of November 22, 2026. `docs/PROGRESS.md` is the source of truth for current state.
+This is a snapshot as of November 23, 2026. `docs/PROGRESS.md` is the source of truth for current state.
 
 **Confirmed:**
 
@@ -444,15 +444,15 @@ This is a snapshot as of November 22, 2026. `docs/PROGRESS.md` is the source of 
 - Local docs live in `docs/`: `PROJECT.md`, `PROGRESS.md`, `ARCHITECTURE.md`, `DECISIONS.md`, and `NOTION.md`.
 - Claude Code is in use through the VS Code extension.
 - The Notion MCP connection works: Claude Code has read the `finsight-ai` Notion page and created and edited child pages under it (November 21, 2026).
+- The Python environment works: `.venv` (Python 3.14.0) with the project installed from `pyproject.toml`; `pytest` passes 3 setup checks.
+- Git is set up on `main` with a GitHub remote.
+- The Notion knowledge base uses the milestone-based layout described in `docs/NOTION.md`.
 
 **Not yet confirmed:**
 
-- Python environment and dependencies are functioning.
-- Git setup and repository are complete.
-- The Notion knowledge base has been restructured into the milestone-based layout described in `docs/NOTION.md`.
 - Any SEC ingestion, database schema, SQL agent, RAG pipeline, evaluation or deployed service has been implemented.
 
-The current milestone is **Milestone 1: Project setup**.
+Milestone 1 (Project setup) is complete. The next milestone is **Milestone 2: Financial data collection and database**.
 
 ## 14. Open choices and likely future evolution
 
