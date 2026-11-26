@@ -1,0 +1,495 @@
+# metrics.toml — the metric catalog: our metric names -> SEC us-gaap tags
+#
+# Each [section] is one building-block metric under our own name. The
+# database and tests use these names, never raw SEC tags.
+#
+# Fields:
+#   label          plain-English name
+#   statement      income | balance | cash_flow
+#   period_type    duration (a total over a period) | instant (a snapshot)
+#   unit           USD | USD/shares | shares   (units as the SEC writes them)
+#   subtractable   true if quarters can be derived by subtraction
+#                  (Q4 = annual - 9 months); never true for per-share
+#                  values or share counts; always false for snapshots
+#   may_be_absent  true if many companies legitimately do not have it
+#                  (store "not applicable", not "missing")
+#   tags           candidate us-gaap tags, in priority order
+#   formulas       optional fallbacks used when no tag is reported, tried
+#                  in order: terms joined by " + " or " - "; each term is
+#                  one of our metric names (snake_case) or a us-gaap tag
+#                  (CamelCase). Values from a formula are labelled derived.
+#   coverage_pct   share of companies covered by a tag or a formula
+#
+# Coverage evidence (task 2.3b, Nov 25, 2026): SEC frames API, CY2025
+# (duration) and CY2025Q4I (instant); 2,057 non-financial companies with
+# assets >= $1B (banks, insurers, lenders, and funds excluded by tag
+# heuristics). Re-measure with scripts/check_catalog_coverage.py. The own 10-K files of 15 large companies (tech, retail,
+# pharma, energy, telecom, industrial) were checked for the gaps; only tags
+# with the same meaning were added.
+
+# --- Income statement (14) ---------------------------------------------------
+
+[revenue]
+label = "Revenue"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "Revenues",
+    "RevenueFromContractWithCustomerIncludingAssessedTax",
+    "SalesRevenueNet",
+]
+coverage_pct = 91.1
+
+[cost_of_revenue]
+label = "Cost of revenue"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true  # single-step income statements have no such line (e.g. Exxon, AT&T, Oracle)
+tags = [
+    "CostOfRevenue",
+    "CostOfGoodsAndServicesSold",
+    "CostOfServices",
+    "CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization",  # excludes D&A
+]
+coverage_pct = 62.0
+
+[gross_profit]
+label = "Gross profit"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true  # only where cost of revenue exists
+tags = ["GrossProfit"]
+formulas = ["revenue - cost_of_revenue"]
+coverage_pct = 64.0
+
+[r_and_d]
+label = "Research and development expense"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true
+tags = [
+    "ResearchAndDevelopmentExpense",
+    "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+]
+coverage_pct = 38.5
+
+[sga]
+label = "Selling, general and administrative expense"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true  # e.g. utilities; companies reporting G&A only
+tags = ["SellingGeneralAndAdministrativeExpense"]
+formulas = ["SellingAndMarketingExpense + GeneralAndAdministrativeExpense"]  # e.g. Microsoft, Oracle
+coverage_pct = 60.7
+
+[operating_income]
+label = "Operating income"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true  # not presented by some (e.g. J&J, Pfizer, IBM, Exxon)
+tags = ["OperatingIncomeLoss"]
+coverage_pct = 80.2
+
+[interest_expense]
+label = "Interest expense"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true  # not always disclosed separately (e.g. Apple)
+tags = [
+    "InterestExpense",
+    "InterestExpenseNonoperating",
+    "InterestExpenseDebt",
+    "InterestAndDebtExpense",
+    "InterestExpenseOperating",
+]
+coverage_pct = 39.1  # understated: SEC frames file for InterestExpenseNonoperating is incomplete
+
+[pretax_income]
+label = "Income before income taxes"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+]
+formulas = [  # e.g. Oracle reports only the two parts
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic + IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign",
+]
+coverage_pct = 87.2
+
+[income_tax]
+label = "Income tax expense"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = ["IncomeTaxExpenseBenefit"]
+coverage_pct = 90.6
+
+[net_income]
+label = "Net income"
+statement = "income"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = ["NetIncomeLoss"]
+coverage_pct = 89.5
+
+[eps_basic]
+label = "Basic earnings per share"
+statement = "income"
+period_type = "duration"
+unit = "USD/shares"
+subtractable = false
+tags = ["EarningsPerShareBasic", "EarningsPerShareBasicAndDiluted"]
+coverage_pct = 86.1
+
+[eps_diluted]
+label = "Diluted earnings per share"
+statement = "income"
+period_type = "duration"
+unit = "USD/shares"
+subtractable = false
+tags = ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"]
+coverage_pct = 85.9
+
+[basic_shares]
+label = "Weighted average basic shares"
+statement = "income"
+period_type = "duration"
+unit = "shares"
+subtractable = false
+tags = [
+    "WeightedAverageNumberOfSharesOutstandingBasic",
+    "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+]
+coverage_pct = 87.0
+
+[diluted_shares]
+label = "Weighted average diluted shares"
+statement = "income"
+period_type = "duration"
+unit = "shares"
+subtractable = false
+tags = [
+    "WeightedAverageNumberOfDilutedSharesOutstanding",
+    "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+]
+coverage_pct = 87.1
+
+# --- Balance sheet (16) ------------------------------------------------------
+
+[cash]
+label = "Cash and cash equivalents"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["CashAndCashEquivalentsAtCarryingValue", "Cash"]
+coverage_pct = 94.4
+
+[short_term_investments]
+label = "Short-term investments"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true
+tags = [
+    "ShortTermInvestments",
+    "MarketableSecuritiesCurrent",
+    "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+]
+coverage_pct = 24.9
+
+[accounts_receivable]
+label = "Accounts receivable"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = [
+    "AccountsReceivableNetCurrent",
+    "ReceivablesNetCurrent",
+    "AccountsReceivableNet",  # unclassified balance sheets (e.g. Deere)
+]
+coverage_pct = 81.6
+
+[inventory]
+label = "Inventory"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true
+tags = [
+    "InventoryNet",
+    "InventoryFinishedGoodsNetOfReserves",  # e.g. Nike: all inventory is finished goods
+]
+coverage_pct = 57.3
+
+[current_assets]
+label = "Total current assets"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["AssetsCurrent"]
+coverage_pct = 85.1
+
+[ppe_net]
+label = "Property, plant and equipment, net"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = [
+    "PropertyPlantAndEquipmentNet",
+    "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+]
+coverage_pct = 86.8
+
+[goodwill]
+label = "Goodwill"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true
+tags = ["Goodwill"]
+coverage_pct = 76.8
+
+[intangible_assets]
+label = "Intangible assets, net (excluding goodwill)"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true
+tags = ["IntangibleAssetsNetExcludingGoodwill", "FiniteLivedIntangibleAssetsNet"]
+coverage_pct = 75.7
+
+[total_assets]
+label = "Total assets"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["Assets"]
+coverage_pct = 100.0
+
+[accounts_payable]
+label = "Accounts payable"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["AccountsPayableCurrent", "AccountsPayableTradeCurrent", "AccountsPayableCurrentAndNoncurrent"]
+coverage_pct = 79.2
+
+[current_liabilities]
+label = "Total current liabilities"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["LiabilitiesCurrent"]
+coverage_pct = 85.1
+
+[short_term_debt]
+label = "Short-term debt and current portion of long-term debt"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true  # many companies have no short-term debt
+tags = [
+    "LongTermDebtCurrent",
+    "DebtCurrent",
+    "ShortTermBorrowings",
+    "LongTermDebtAndCapitalLeaseObligationsCurrent",
+]
+coverage_pct = 63.0
+
+[long_term_debt]
+label = "Long-term debt (non-current)"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+may_be_absent = true  # debt-free companies
+tags = ["LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"]
+formulas = [
+    "LongTermDebt - LongTermDebtCurrent",
+    "DebtLongtermAndShorttermCombinedAmount - DebtCurrent",  # e.g. Oracle
+]
+coverage_pct = 66.4
+
+[lease_liabilities]
+label = "Operating lease liabilities"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["OperatingLeaseLiability", "OperatingLeaseLiabilityNoncurrent"]
+coverage_pct = 88.3
+
+[total_liabilities]
+label = "Total liabilities"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = ["Liabilities"]
+# Equity must include minority owners (noncontrolling interest), or the
+# result is overstated (Walmart: by $6.3B). Temporary equity, if any, stays
+# inside the result (Walmart: $0.3B redeemable noncontrolling interest).
+formulas = [
+    "LiabilitiesAndStockholdersEquity - StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "LiabilitiesAndStockholdersEquity - StockholdersEquity - MinorityInterest",
+    "LiabilitiesAndStockholdersEquity - StockholdersEquity",  # no minority owners
+]
+coverage_pct = 99.3
+
+[total_equity]
+label = "Total stockholders' equity"
+statement = "balance"
+period_type = "instant"
+unit = "USD"
+subtractable = false
+tags = [
+    "StockholdersEquity",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+]
+coverage_pct = 97.5
+
+# --- Cash flow statement (10) ------------------------------------------------
+
+[operating_cash_flow]
+label = "Net cash from operating activities"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "NetCashProvidedByUsedInOperatingActivities",
+    "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+]
+coverage_pct = 94.2
+
+[investing_cash_flow]
+label = "Net cash from investing activities"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "NetCashProvidedByUsedInInvestingActivities",
+    "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations",
+]
+coverage_pct = 94.0
+
+[financing_cash_flow]
+label = "Net cash from financing activities"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "NetCashProvidedByUsedInFinancingActivities",
+    "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations",
+]
+coverage_pct = 94.2
+
+[capex]
+label = "Capital expenditures"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "PaymentsToAcquirePropertyPlantAndEquipment",
+    "PaymentsToAcquireProductiveAssets",
+    "PaymentsForCapitalImprovements",
+]
+coverage_pct = 81.0
+
+[depreciation_amortization]
+label = "Depreciation and amortization"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = [
+    "DepreciationDepletionAndAmortization",
+    "DepreciationAndAmortization",
+    "DepreciationAmortizationAndAccretionNet",
+    "Depreciation",
+]
+coverage_pct = 91.2
+
+[stock_based_comp]
+label = "Stock-based compensation"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+tags = ["ShareBasedCompensation", "AllocatedShareBasedCompensationExpense"]
+coverage_pct = 86.8
+
+[dividends_paid]
+label = "Dividends paid"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true
+tags = ["PaymentsOfDividends", "PaymentsOfDividendsCommonStock"]
+coverage_pct = 51.1
+
+[dividends_per_share]
+label = "Dividends declared per share"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD/shares"
+subtractable = false
+may_be_absent = true
+tags = ["CommonStockDividendsPerShareDeclared", "CommonStockDividendsPerShareCashPaid"]
+coverage_pct = 42.6
+
+[share_buybacks]
+label = "Share repurchases"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true
+tags = ["PaymentsForRepurchaseOfCommonStock"]
+coverage_pct = 59.4
+
+[acquisitions_paid]
+label = "Cash paid for acquisitions"
+statement = "cash_flow"
+period_type = "duration"
+unit = "USD"
+subtractable = true
+may_be_absent = true
+tags = ["PaymentsToAcquireBusinessesNetOfCashAcquired", "PaymentsToAcquireBusinessesGross"]
+coverage_pct = 46.4

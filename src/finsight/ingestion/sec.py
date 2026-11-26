@@ -86,6 +86,20 @@ class SecClient:
         self.close()
 
 
+def _write_metadata(path: Path, url: str, status: int, content: bytes, **extra) -> None:
+    """Write `<name>.meta.json` next to `path`: where, when, and a checksum."""
+    metadata = {
+        "source_url": url,
+        **extra,
+        "retrieved_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "http_status": status,
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.with_suffix(".meta.json").write_text(json.dumps(metadata, indent=2) + "\n")
+
+
 def download_company_facts(
     cik: int | str, client: SecClient, raw_dir: Path, *, force: bool = False
 ) -> Path:
@@ -109,14 +123,73 @@ def download_company_facts(
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
-    metadata = {
-        "source_url": url,
-        "cik": normalize_cik(cik),
-        "entity_name": data.get("entityName"),
-        "retrieved_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "http_status": response.status_code,
-        "size_bytes": len(content),
-        "sha256": hashlib.sha256(content).hexdigest(),
-    }
-    path.with_suffix(".meta.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    _write_metadata(path, url, response.status_code, content,
+                    cik=normalize_cik(cik), entity_name=data.get("entityName"))
     return path
+
+
+# --- Frames: one tag, one period, every company ---------------------------------
+
+
+def _unit_slug(unit: str) -> str:
+    """The SEC writes "USD/shares" in data but "USD-per-shares" in frame URLs."""
+    return unit.replace("/", "-per-")
+
+
+def frame_url(tag: str, unit: str, period: str, taxonomy: str = "us-gaap") -> str:
+    """URL of one frame, e.g. period "CY2025" (a year) or "CY2025Q4I" (an instant)."""
+    return f"{SEC_API_BASE}/api/xbrl/frames/{taxonomy}/{tag}/{_unit_slug(unit)}/{period}.json"
+
+
+def raw_frame_path(
+    tag: str, unit: str, period: str, raw_dir: Path, taxonomy: str = "us-gaap"
+) -> Path:
+    """Where the raw frame for this tag, unit, and period is stored."""
+    name = f"{taxonomy}_{tag}_{_unit_slug(unit)}_{period}.json"
+    return raw_dir / "sec" / "frames" / name
+
+
+def download_frame(
+    tag: str, unit: str, period: str, client: SecClient, raw_dir: Path,
+    *, force: bool = False,
+) -> Path | None:
+    """Download one frame into `raw_dir`; return its path, or None if the SEC
+    has no data for it (HTTP 404).
+
+    A 404 is remembered in the metadata file only, so the raw folder never
+    holds anything the SEC did not send. Skips work already done unless `force`.
+    """
+    path = raw_frame_path(tag, unit, period, raw_dir)
+    meta = path.with_suffix(".meta.json")
+    if not force:
+        if path.exists():
+            return path
+        if meta.exists() and json.loads(meta.read_text())["http_status"] == 404:
+            return None
+
+    url = frame_url(tag, unit, period)
+    try:
+        response = client.get(url)
+    except httpx.HTTPStatusError as err:
+        if err.response.status_code != 404:
+            raise
+        path.unlink(missing_ok=True)
+        _write_metadata(path, url, 404, b"", tag=tag, unit=unit, period=period)
+        return None
+
+    content = response.content
+    data = json.loads(content)
+    if data.get("tag") != tag or "data" not in data:
+        raise ValueError(f"Response is not the frame for {tag!r}")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+    _write_metadata(path, url, response.status_code, content, tag=tag, unit=unit, period=period)
+    return path
+
+
+def load_frame(path: Path | None) -> dict[int, float]:
+    """CIK -> value from a downloaded frame; empty if there was no frame."""
+    if path is None:
+        return {}
+    return {row["cik"]: row["val"] for row in json.loads(path.read_bytes())["data"]}

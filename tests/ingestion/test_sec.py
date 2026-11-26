@@ -10,8 +10,12 @@ from finsight.ingestion.sec import (
     SecClient,
     company_facts_url,
     download_company_facts,
+    download_frame,
+    frame_url,
+    load_frame,
     normalize_cik,
     raw_company_facts_path,
+    raw_frame_path,
 )
 
 USER_AGENT = "Test User test@example.com"
@@ -144,3 +148,66 @@ def test_download_does_not_save_on_http_error(tmp_path):
         with pytest.raises(httpx.HTTPStatusError):
             download_company_facts(789019, client, tmp_path)
     assert not raw_company_facts_path(789019, tmp_path).exists()
+
+
+# --- Frames ------------------------------------------------------------------------
+
+# Placeholder frame: made-up CIKs and values, not real figures.
+FAKE_FRAME = json.dumps({
+    "taxonomy": "us-gaap", "tag": "Revenues", "uom": "USD", "ccp": "CY2025",
+    "data": [{"cik": 1, "val": 100}, {"cik": 2, "val": 200}],
+}).encode()
+
+
+def test_frame_url_and_path_spell_per_share_units_the_sec_way(tmp_path):
+    assert frame_url("EarningsPerShareDiluted", "USD/shares", "CY2025") == (
+        "https://data.sec.gov/api/xbrl/frames/us-gaap/EarningsPerShareDiluted/"
+        "USD-per-shares/CY2025.json"
+    )
+    assert raw_frame_path("Assets", "USD", "CY2025Q4I", tmp_path) == (
+        tmp_path / "sec" / "frames" / "us-gaap_Assets_USD_CY2025Q4I.json"
+    )
+
+
+def test_download_frame_saves_unchanged_with_metadata(tmp_path):
+    with make_client(Recorder(body=FAKE_FRAME)) as client:
+        path = download_frame("Revenues", "USD", "CY2025", client, tmp_path)
+    assert path.read_bytes() == FAKE_FRAME
+    meta = json.loads(path.with_suffix(".meta.json").read_text())
+    assert meta["tag"] == "Revenues" and meta["http_status"] == 200
+    assert meta["sha256"] == hashlib.sha256(FAKE_FRAME).hexdigest()
+    assert load_frame(path) == {1: 100, 2: 200}
+
+
+def test_download_frame_404_returns_none_and_is_remembered(tmp_path):
+    server = Recorder(status=404, body=b"not found")
+    with make_client(server) as client:
+        assert download_frame("NoSuchTag", "USD", "CY2025", client, tmp_path) is None
+        assert download_frame("NoSuchTag", "USD", "CY2025", client, tmp_path) is None
+    assert len(server.requests) == 1  # the second call used the remembered 404
+    path = raw_frame_path("NoSuchTag", "USD", "CY2025", tmp_path)
+    assert not path.exists()  # nothing the SEC did not send is saved as data
+    assert json.loads(path.with_suffix(".meta.json").read_text())["http_status"] == 404
+    assert load_frame(None) == {}
+
+
+def test_download_frame_skips_existing_unless_forced(tmp_path):
+    server = Recorder(body=FAKE_FRAME)
+    with make_client(server) as client:
+        download_frame("Revenues", "USD", "CY2025", client, tmp_path)
+        download_frame("Revenues", "USD", "CY2025", client, tmp_path)
+        download_frame("Revenues", "USD", "CY2025", client, tmp_path, force=True)
+    assert len(server.requests) == 2
+
+
+def test_download_frame_rejects_a_different_tag(tmp_path):
+    with make_client(Recorder(body=FAKE_FRAME)) as client:
+        with pytest.raises(ValueError, match="not the frame"):
+            download_frame("Assets", "USD", "CY2025Q4I", client, tmp_path)
+    assert not raw_frame_path("Assets", "USD", "CY2025Q4I", tmp_path).exists()
+
+
+def test_download_frame_other_http_errors_still_raise(tmp_path):
+    with make_client(Recorder(status=503, body=b"busy")) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            download_frame("Revenues", "USD", "CY2025", client, tmp_path)

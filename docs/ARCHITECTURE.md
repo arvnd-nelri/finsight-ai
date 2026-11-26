@@ -45,6 +45,7 @@ package under `src/`, separate from tests, data, and docs.
 finsight-ai/
 ├── src/finsight/        Python package (the application)
 │   ├── config.py        settings from env vars / ~/.config/finsight-ai/
+│   ├── catalog/         metric catalog: metrics.toml, loader, coverage checks
 │   └── ingestion/sec.py SEC EDGAR client and raw company-facts download
 ├── tests/               pytest tests, mirroring src/finsight/
 ├── data/                local data; raw/ and processed/ are git-ignored
@@ -101,6 +102,39 @@ finsight.ingestion.sec
 ```
 
 Tests use `httpx.MockTransport`, so they never call the real SEC.
+
+### Metric catalog (Milestone 2, task 2.3b)
+
+```text
+src/finsight/catalog/metrics.toml   40 metrics: our name -> label, statement,
+                                    period type, unit, subtractable,
+                                    may_be_absent, us-gaap tags (priority
+                                    order), fallback formulas (ordered),
+                                    coverage_pct
+finsight.catalog.load_catalog()     reads the file, validates every entry
+                                    and formula (CatalogError on a bad
+                                    one), returns {name: Metric}
+finsight.catalog.formula_terms()    "a - B + c" -> [(+1,a), (-1,B), (+1,c)]
+```
+
+```text
+scripts/check_catalog_coverage.py  [--companies CIK ...] [--year] [--refresh]
+        |
+        |-- finsight.ingestion.sec.download_frame(tag, unit, period)
+        |       GET https://data.sec.gov/api/xbrl/frames/us-gaap/{tag}/{unit}/{period}.json
+        |       save: data/raw/sec/frames/us-gaap_{tag}_{unit}_{period}.json + .meta.json
+        |       404 (no data): recorded in .meta.json only, returns None
+        |
+        v
+finsight.catalog.coverage
+  comparison_group()   non-financial companies (tag heuristics), assets >= $1B
+  metric_coverage()    per metric: companies found by a tag / by tag or formula
+  company_status()     one company's latest 10-K: tag / formula / missing
+```
+
+The catalog is the single list of what the pipeline collects. The cleaning
+step (2.4) will read it to map raw tags to our metric names; nothing
+reads it yet besides the tests and the coverage survey.
 
 ## Architecture Changes
 

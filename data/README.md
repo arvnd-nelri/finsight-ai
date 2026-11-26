@@ -16,7 +16,11 @@ project's scripts, so it never needs to be committed.
 raw/sec/companyfacts/
 ├── CIK0000789019.json        SEC response, byte-for-byte unchanged
 └── CIK0000789019.meta.json   provenance: source URL, UTC time, size, SHA-256
+raw/sec/frames/
+├── us-gaap_Assets_USD_CY2025Q4I.json        one tag, one period, every company
+└── us-gaap_Assets_USD_CY2025Q4I.meta.json   provenance (a 404 is recorded here only)
 ```
 
-Rebuild with `python scripts/download_sec_data.py <CIK> [--force]`
-(needs `SEC_USER_AGENT` in `~/.config/finsight-ai/sec.env`).
+Rebuild company facts with `python scripts/download_sec_data.py <CIK> [--force]`
+and frames with `python scripts/check_catalog_coverage.py [--refresh]`
+(both need `SEC_USER_AGENT` in `~/.config/finsight-ai/sec.env`).

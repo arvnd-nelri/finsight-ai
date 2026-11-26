@@ -22,6 +22,10 @@ dev = ["pytest>=8"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Data files that live inside the package (the metric catalog).
+finsight = ["catalog/*.toml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"

@@ -55,6 +55,14 @@ The financial domain provides real constraints and an interesting combination of
 
 Potential users include students, researchers, business analysts, and professionals who want to explore publicly reported company performance. The initial application is a research and analysis aid, not an investment advisor or a system for autonomous trading.
 
+The people who actually read 10-K and 10-Q reports, and what they look for (reviewed November 25, 2026):
+
+- **Investors and equity analysts:** growth, profitability, earnings per share, cash generation, shareholder returns, comparisons between companies.
+- **Lenders and credit analysts:** liquidity, debt, interest coverage, lease obligations.
+- **Acquirers, competitors, and regulators:** the business, risks, R&D, acquisitions, goodwill, accounting.
+
+FinSight AI serves them as a fast research assistant: an answer with its source in seconds, instead of searching a 100+ page filing. It does not replace careful reading for important decisions; the cited sources let users check each answer. This list of readers drives the metric catalog (Milestone 2, task 2.3b).
+
 ### Questions about financial numbers (structured analysis)
 
 - How did Microsoft's revenue change from fiscal 2021 through fiscal 2025?
@@ -252,6 +260,8 @@ Likely work:
 Likely work:
 - Retrieve initial Microsoft SEC data and preserve raw responses/metadata.
 - Identify appropriate annual revenue, net income, and operating income concepts.
+- Grow these into a metric catalog of building-block metrics (draft: 40) that covers the common annual and quarterly questions of the readers in section 3.
+- Start with non-financial companies; banks and insurers are a later extension.
 - Normalize period, units, company identifiers, filings, and source links.
 - Validate extracted figures against source filings.
 - Store data in DuckDB and query it with SQL.
@@ -458,7 +468,7 @@ Milestone 1 (Project setup) is complete. The next milestone is **Milestone 2: Fi
 
 The following are intentionally not finalized:
 
-- Exact initial companies, financial metrics, and historical coverage.
+- Exact initial companies, financial metrics, and historical coverage (direction so far: about 10 non-financial companies, a draft catalog of 40 metrics).
 - Which SEC filing sections to index and how to cite them precisely.
 - Data schema and treatment of restatements, fiscal periods, company-specific facts, and segment data.
 - Runtime LLM provider/model and any external API budget.
