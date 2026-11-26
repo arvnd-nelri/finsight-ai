@@ -145,6 +145,35 @@ No lock file yet, so exact library versions are not pinned. Revisit
 
 Status: Accepted
 
+### D007 — Fetch SEC Data Directly With httpx
+
+Date: November 23, 2026
+
+Decision:
+Download SEC EDGAR data by calling the `data.sec.gov` JSON API directly,
+using the httpx library. Save each response unchanged in `data/raw/` with a
+metadata file (source URL, UTC time, size, SHA-256). Read the required
+User-Agent (name and email) from the `SEC_USER_AGENT` environment variable
+or `~/.config/finsight-ai/sec.env`, never from the repository. Wait at least
+0.2 s between requests (SEC limit: 10 per second).
+
+Reason:
+Direct calls keep every step visible and explainable, which is the point of
+this milestone, with one small dependency. httpx has timeouts on by default
+and a mock transport for network-free tests; its API mirrors `requests`.
+
+Alternatives:
+An SEC library such as `edgartools` (faster start, but hides the data
+handling). Bulk `companyfacts.zip` (suits thousands of companies, overkill
+for a few). `requests` instead of httpx (equally simple; no built-in mock
+transport, no default timeout).
+
+Trade-offs:
+We write and maintain the parsing and cleaning logic ourselves.
+Revisit the bulk download if the company list grows large.
+
+Status: Accepted
+
 ## Future Decisions
 
 New decisions should include:

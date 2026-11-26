@@ -4,10 +4,8 @@
 
 ## Current Status
 
-Project setup phase.
-
-No application components have been
-implemented yet.
+Milestone 2 in progress. The first ingestion component (raw SEC
+download) is implemented; nothing downstream of it exists yet.
 
 ## Planned High-Level System
 
@@ -41,11 +39,13 @@ as they are introduced and confirmed.
 The project uses the **src layout**: application code lives in a Python
 package under `src/`, separate from tests, data, and docs.
 
-### Current (end of Milestone 1)
+### Current
 
 ```text
 finsight-ai/
-├── src/finsight/        Python package (the application); empty for now
+├── src/finsight/        Python package (the application)
+│   ├── config.py        settings from env vars / ~/.config/finsight-ai/
+│   └── ingestion/sec.py SEC EDGAR client and raw company-facts download
 ├── tests/               pytest tests, mirroring src/finsight/
 ├── data/                local data; raw/ and processed/ are git-ignored
 ├── scripts/             helper scripts (e.g. start-notion-mcp.sh)
@@ -60,8 +60,7 @@ finsight-ai/
 
 | Path | Milestone | Purpose |
 | --- | --- | --- |
-| `src/finsight/config.py` | 1–2 | Settings loaded from env vars (no secrets in code) |
-| `src/finsight/ingestion/` | 2 | Download and parse SEC EDGAR data |
+| `src/finsight/ingestion/` (more modules) | 2 | Parse and normalize SEC data |
 | `src/finsight/db/` | 2 | Database schema, loading, read-only queries |
 | `src/finsight/sql/` | 3 | Text-to-SQL: schema context, generation, validation |
 | `src/finsight/rag/` | 4 | Filing text chunking, indexing, retrieval |
@@ -81,7 +80,27 @@ Names and boundaries may change once real code shows what fits.
 
 ## Implemented Components
 
-None yet.
+### Raw SEC download (Milestone 2, task 2.1)
+
+```text
+scripts/download_sec_data.py  (thin CLI: CIKs in, file paths out)
+        |
+        |-- finsight.config.get_sec_user_agent()
+        |       env var SEC_USER_AGENT, else ~/.config/finsight-ai/sec.env
+        |
+        v
+finsight.ingestion.sec
+  SecClient            httpx client: User-Agent header, 30 s timeout,
+                       min 0.2 s between requests (SEC limit: 10/s)
+  download_company_facts(cik)
+        GET https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json
+        check: valid JSON, response CIK == requested CIK
+        save:  data/raw/sec/companyfacts/CIK##########.json (unchanged)
+               + .meta.json (source URL, UTC time, status, size, SHA-256)
+        skip if already downloaded (unless --force)
+```
+
+Tests use `httpx.MockTransport`, so they never call the real SEC.
 
 ## Architecture Changes
 

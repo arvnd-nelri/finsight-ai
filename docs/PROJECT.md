@@ -477,4 +477,4 @@ At a minimum, the finished core system should let a person ask meaningful financ
 
 A stronger stretch outcome would show rigorous comparisons between agent configurations and/or an adapted smaller model, with measured effects on correctness, grounding, latency, and cost. The value comes from well-reasoned engineering and honest evaluation, not simply accumulating tool names.
 
-**Next practical action:** Finish and verify Milestone 1 setup. Then start Milestone 2 by retrieving a small amount of Microsoft financial information from the SEC, checking its reporting periods and provenance, and building the first trustworthy data pipeline.
+**Next practical action:** Milestone 1 is complete. Start Milestone 2 by retrieving a small amount of Microsoft financial information from the SEC, checking its reporting periods and provenance, and building the first trustworthy data pipeline.

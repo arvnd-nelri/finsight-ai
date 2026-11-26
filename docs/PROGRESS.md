@@ -6,18 +6,18 @@
 
 | | |
 | --- | --- |
-| **Current milestone** | 2 of 8 — Financial Data Collection & Database (not started) |
-| **Status** | Milestone 1 complete |
-| **Next step** | Commit and push the Milestone 1 work, then plan Milestone 2's first step (fetch Microsoft's SEC data) |
+| **Current milestone** | 2 of 8 — Financial Data Collection & Database |
+| **Status** | In progress |
+| **Next step** | Task 2.3/2.4: agree the metric-to-tag mapping and the restatement policy, then build the cleaning step |
 | **Blockers** | None |
-| **Last updated** | November 23, 2026 |
+| **Last updated** | November 24, 2026 |
 
 ## Milestone Overview
 
 | # | Milestone | Status |
 | --- | --- | --- |
 | 1 | Project Setup | Done |
-| 2 | Financial Data Collection & Database | Not started |
+| 2 | Financial Data Collection & Database | In progress |
 | 3 | Text-to-SQL | Not started |
 | 4 | RAG over SEC Filings | Not started |
 | 5 | AI Agent & Evidence Verification | Not started |
@@ -54,14 +54,70 @@ passed. No financial features are needed to finish this milestone.
 **Milestone 1 is complete:** the definition of done is met (environment
 runs, files organized, docs updated locally and in Notion, setup checks pass).
 
-### Recommended Next Steps
+---
 
-1. **Commit and push** the Milestone 1 work (structure, `pyproject.toml`,
-   tests, doc updates) as one commit.
-2. **Start Milestone 2** (plan, not yet started): read the Milestone 2
-   section of `docs/PROJECT.md`, then take the first small step: fetch
-   Microsoft's SEC company-facts data and save the raw response in
-   `data/raw/`.
+## Milestone 2 — Financial Data Collection & Database
+
+**Goal:** Build a trustworthy, reproducible ETL pipeline that turns SEC
+EDGAR data into a database of verified financial facts, each linked to its
+source filing.
+
+**Definition of done:** a reproducible pipeline and a DuckDB database (candidate)
+with verified, provenance-linked data for the initial companies; basic
+analytical SQL works.
+
+### Tasks (proposed plan; adjust as work shows what fits)
+
+| # | Task | Status | Notes |
+| --- | --- | --- | --- |
+| 2.1 | Download Microsoft's raw company-facts JSON | Done | `finsight.config`, `finsight.ingestion.sec`, `scripts/download_sec_data.py`; 29 tests pass. Live run Nov 24: HTTP 200, 4,938,072 bytes, checksum re-verified, `data/raw/` git-ignored |
+| 2.2 | Explore the raw JSON structure | Done | Findings below. Exploration was ad hoc (not project code); the rules it found become tested code in 2.4 |
+| 2.3 | Choose the 3 metrics and their XBRL tags | Not started | Revenue, net income, operating income; tags can change over years |
+| 2.4 | Clean, de-duplicate, label periods | Not started | Each 10-K repeats prior years; derive periods from `start`/`end` |
+| 2.5 | Load into DuckDB | Not started | DuckDB is still a candidate; confirm and record in `DECISIONS.md` |
+| 2.6 | Validate values against the real 10-K | Not started | Manual check against the filing |
+| 2.7 | Basic SQL queries | Not started | e.g. revenue by fiscal year |
+| 2.8 | Add Apple | Not started | Tests that the pipeline is not Microsoft-specific (different fiscal year-end) |
+| 2.9 | Decide the final company list | Not started | Based on real effort per company after 2.8; current lean: about 10 companies across industries |
+
+### Agreed So Far
+
+- **Fetch approach:** call the SEC API directly with httpx (D007).
+- **SEC access rules:** a User-Agent with name and email on every request
+  (stored outside the repo, never committed), at most 10 requests per
+  second, download once and reuse the raw copy.
+- **Company scope:** decide at the end of Milestone 2 (task 2.9), once
+  Microsoft and Apple show the real cost per company.
+
+### Task 2.2 Findings (Microsoft, file retrieved Nov 24, 2026)
+
+Raw SEC values below are not yet validated against the filings (task 2.6).
+
+- **Size:** 4 taxonomies (`us-gaap` 562 concepts, `dei`, `ecd`, `ffd`),
+  33,058 fact entries. Entry fields: `start`, `end`, `val`, `accn`, `fy`,
+  `fp`, `form`, `filed`, `frame` (`start` absent for point-in-time facts).
+- **`fy`/`fp` describe the filing, confirmed.** Of 65 annual
+  `NetIncomeLoss` entries, 47 have `fy` different from the period's year.
+  The first entry is a 3-month figure (Jul–Sep 2007) labelled `fy 2010, fp FY`.
+- **Annual reports contain quarterly data.** 10-K entries include quarters
+  and 6/9-month spans, so duration must be computed from `start`/`end`.
+- **Duplicates:** up to 5 copies of the same annual period across filings.
+- **Non-financial-statement forms:** values also come from `8-K`,
+  `DEF 14A` (proxy) and `10-Q/A`; the latest annual `NetIncomeLoss` entry
+  is from a `DEF 14A`. Filter by form.
+- **Revenue tag changed twice:** `Revenues` (FY2008–FY2010),
+  `SalesRevenueNet` (FY2009–FY2017),
+  `RevenueFromContractWithCustomerExcludingAssessedTax` (FY2016–FY2026).
+  Overlap years agree for FY2009–2010 but not FY2016–2017.
+- **Restatements:** FY2016 and FY2017 net income and operating income
+  differ between filings (e.g. FY2016 net income 16,798,000,000 in the FY2016
+  and FY2017 10-Ks, 20,539,000,000 in the FY2018 10-K). Likely cause: the new
+  revenue accounting standard (ASC 606) adopted in FY2018; confirm in 2.6.
+- **`frame`:** one entry per period carries a `frame` tag (the SEC's own
+  de-duplication); for restated years it marks the latest value. Its label
+  is calendar-based (`CY2016`), not the fiscal year.
+- **Coverage:** annual net and operating income FY2008–FY2026; latest 10-K
+  filed 2026-07-29.
 
 ---
 
@@ -73,7 +129,22 @@ runs, files organized, docs updated locally and in Notion, setup checks pass).
 - Installed the project into `.venv` in editable mode (`pip install -e ".[dev]"`).
 - Added `tests/test_setup.py` with 3 setup checks; `pytest` result: 3 passed.
 - Added setup instructions to `README.md`.
-- Milestone 1 complete.
+- Milestone 1 complete. Committed and pushed as `3f0980a`.
+- Started planning Milestone 2: walked through ETL, EDGAR, XBRL, CIK, fiscal
+  years, and provenance; drafted tasks 2.1–2.9; agreed to decide the
+  company list after Microsoft and Apple are working.
+- Chose option A with httpx (D007). Created `~/.config/finsight-ai/sec.env`
+  (placeholder, outside the repo). Added `httpx` dependency, `finsight.config`,
+  `finsight.ingestion.sec`, `scripts/download_sec_data.py`, and 26 tests
+  (29 total, all passing, no network). Confirmed the script stops with a
+  clear error while the placeholder is still in place.
+
+### November 24, 2026
+- First live SEC download (Microsoft): HTTP 200, 4.9 MB, checksum verified.
+  Task 2.1 done.
+- Explored the raw JSON (task 2.2): confirmed the `fy` trap, found three
+  revenue tags over time, duplicate copies, non-10-K forms, and restated
+  FY2016–2017 values. Findings recorded above.
 
 ### November 22, 2026
 - Expanded `docs/PROJECT.md` into the full project vision (15 sections).

@@ -58,7 +58,9 @@ Update docs as part of finishing a task, not later:
 
 - **Update Notion automatically, in the same turn, without being asked**,
   whenever something meaningful happens (task done, decision made, problem
-  solved, new concept used). Skip trivial changes. A Stop hook
+  solved, new concept used). This includes plans or agreements reached in
+  discussion with no file edits; the hook cannot detect those, so update
+  `docs/PROGRESS.md` and Notion yourself. Skip trivial changes. A Stop hook
   (`.claude/hooks/notion-sync.sh`) reminds you if project files changed but
   Notion was not updated.
 - Keep the top-line purpose comment in each `docs/*.md` file.
